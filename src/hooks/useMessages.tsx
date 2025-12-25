@@ -227,7 +227,7 @@ export const useMessages = (channelId: string | null) => {
             .select(
               `
               *,
-              author:profiles!messages_author_id_fkey(
+              author:profiles!author_id(
                 id, username, display_name, avatar_url, status, subscription_tier
               )
             `
