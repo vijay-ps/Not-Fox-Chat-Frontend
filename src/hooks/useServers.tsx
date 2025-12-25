@@ -14,7 +14,10 @@ export const useServers = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchServers = async () => {
-    if (!profile) return;
+    if (!profile) {
+      setLoading(false);
+      return;
+    }
     try {
       const { api } = await import("@/services/api");
       const data = await api.servers.list();
@@ -107,9 +110,7 @@ export const useServers = () => {
   };
 
   useEffect(() => {
-    if (profile) {
-      fetchServers();
-    }
+    fetchServers();
   }, [profile]);
 
   return {

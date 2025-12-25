@@ -17,14 +17,14 @@ import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
 
 interface MessageItemRealProps {
-  message: Message;
+  message: any; // Using any or a union type to support both DirectMessage and Channel Message
   index: number;
   showAvatar: boolean;
-  onEdit: (messageId: string, content: string) => void;
-  onDelete: (messageId: string) => void;
-  onReact: (messageId: string, emoji: string) => void;
-  onPin: (messageId: string, isPinned: boolean) => void;
-  onReply: (message: Message) => void;
+  onEdit?: (messageId: string, content: string) => void;
+  onDelete?: (messageId: string) => void;
+  onReact?: (messageId: string, emoji: string) => void;
+  onPin?: (messageId: string, isPinned: boolean) => void;
+  onReply?: (message: any) => void;
 }
 
 const EMOJI_OPTIONS = ["👍", "❤️", "🔥", "😂", "😮", "🎉", "🤔", "👀"];
@@ -84,24 +84,24 @@ const MessageItemReal = ({
         message.is_pinned && "bg-accent/5"
       )}
     >
-      <div className="w-10 flex-shrink-0">
+      <div className="w-8 sm:w-10 flex-shrink-0">
         {showAvatar ? (
           author?.avatar_url ? (
             <img
               src={author.avatar_url}
               alt={author.display_name || author.username}
-              className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+              className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
             />
           ) : (
-            <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-semibold text-xs sm:text-base">
               {(author?.display_name || author?.username || "?")
                 .charAt(0)
                 .toUpperCase()}
             </div>
           )
         ) : (
-          <span className="invisible group-hover:visible text-[10px] text-muted-foreground leading-[22px]">
-            {format(new Date(message.created_at), "h:mm a")}
+          <span className="invisible group-hover:visible text-[9px] sm:text-[10px] text-muted-foreground leading-[22px]">
+            {format(new Date(message.created_at), "h:mm")}
           </span>
         )}
       </div>
@@ -126,7 +126,7 @@ const MessageItemReal = ({
             <span className="text-xs text-muted-foreground">
               {formatTime(message.created_at)}
             </span>
-            {message.is_edited && (
+            {message.is_edited && !message.is_deleted && (
               <span className="text-xs text-muted-foreground">(edited)</span>
             )}
             {message.is_pinned && (
@@ -135,10 +135,25 @@ const MessageItemReal = ({
           </div>
         )}
 
-        {message.reply_to_id && (
-          <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+        {message.reply_to && (
+          <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1 opacity-80 hover:opacity-100 cursor-pointer transition-opacity">
             <div className="w-6 border-t-2 border-l-2 border-muted-foreground/30 h-2 rounded-tl-md" />
-            <span className="opacity-70">Replying to message...</span>
+            <img
+              src={message.reply_to.author?.avatar_url || ""}
+              className="w-4 h-4 rounded-full"
+              alt=""
+              onError={(e) => (e.currentTarget.style.display = "none")}
+            />
+            <span className="font-semibold">
+              @
+              {message.reply_to.author?.display_name ||
+                message.reply_to.author?.username}
+            </span>
+            <span className="truncate max-w-[200px] italic">
+              {message.reply_to.is_deleted
+                ? "Original message was deleted"
+                : message.reply_to.content}
+            </span>
           </div>
         )}
 
@@ -168,14 +183,18 @@ const MessageItemReal = ({
               <X className="w-4 h-4" />
             </button>
           </div>
+        ) : message.is_deleted ? (
+          <span className="text-sm sm:text-[15px] text-muted-foreground italic">
+            This message was deleted
+          </span>
         ) : (
-          <div className="text-foreground leading-relaxed whitespace-pre-wrap break-words">
+          <div className="text-sm sm:text-[15px] text-foreground leading-relaxed whitespace-pre-wrap break-words">
             {message.content.split("\n").map((line, i) => (
               <p
                 key={i}
                 className={cn(
                   line.startsWith("```") &&
-                    "font-mono text-sm bg-secondary/50 p-2 rounded my-1"
+                    "font-mono text-xs sm:text-sm bg-secondary/50 p-2 rounded my-1 overflow-x-auto"
                 )}
               >
                 {line}
@@ -184,33 +203,39 @@ const MessageItemReal = ({
           </div>
         )}
 
-        {message.attachments && message.attachments.length > 0 && (
-          <div className="mt-2 space-y-2">
-            {message.attachments.map((att: any, i) => (
-              <div key={i}>
-                {att.type === "image" ? (
-                  <img
-                    src={att.url}
-                    alt={att.name}
-                    className="max-w-sm rounded-lg border border-border"
-                  />
-                ) : (
-                  <a
-                    href={att.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-2 bg-secondary rounded-lg border border-border text-foreground hover:bg-secondary/80"
-                  >
-                    <span className="text-sm font-medium">{att.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      ({Math.round(att.size / 1024)} KB)
-                    </span>
-                  </a>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        {!message.is_deleted &&
+          message.attachments &&
+          message.attachments.length > 0 && (
+            <div className="mt-2 space-y-2">
+              {message.attachments.map((att: any, i) => (
+                <div key={i}>
+                  {att.type === "image" ? (
+                    <div className="relative max-w-[min(400px,100%)] rounded-lg overflow-hidden border border-border/50 group/image">
+                      <img
+                        src={att.url}
+                        alt={att.name}
+                        className="w-full h-auto object-contain transition-transform duration-300 group-hover/image:scale-[1.02]"
+                      />
+                    </div>
+                  ) : (
+                    <a
+                      href={att.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 p-2 bg-secondary/40 rounded-lg border border-border/50 text-foreground hover:bg-secondary/60 transition-all max-w-sm"
+                    >
+                      <span className="text-sm font-medium truncate">
+                        {att.name}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                        ({Math.round(att.size / 1024)} KB)
+                      </span>
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
 
         {message.reactions && message.reactions.length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
@@ -231,72 +256,74 @@ const MessageItemReal = ({
       </div>
 
       <div className="absolute right-2 -top-4 opacity-0 group-hover:opacity-100 transition-opacity z-10 w-fit">
-        <div className="flex items-center bg-card border border-border rounded-md shadow-lg overflow-hidden">
-          <div className="relative">
+        {!message.is_deleted && (
+          <div className="flex items-center bg-card border border-border rounded-md shadow-lg overflow-hidden">
+            <div className="relative">
+              <button
+                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                title="React"
+              >
+                <Smile className="w-4 h-4" />
+              </button>
+
+              {showEmojiPicker && (
+                <div className="absolute bottom-full right-0 mb-1 z-50 shadow-xl rounded-lg overflow-hidden">
+                  <EmojiPicker
+                    onEmojiClick={(emojiData) => {
+                      onReact(message.id, emojiData.emoji);
+                      setShowEmojiPicker(false);
+                    }}
+                    lazyLoadEmojis={true}
+                    theme={Theme.DARK}
+                    width={300}
+                    height={400}
+                  />
+                </div>
+              )}
+            </div>
+
             <button
-              onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+              onClick={() => onReply(message)}
               className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-              title="React"
+              title="Reply"
             >
-              <Smile className="w-4 h-4" />
+              <Reply className="w-4 h-4" />
             </button>
 
-            {showEmojiPicker && (
-              <div className="absolute bottom-full right-0 mb-1 z-50 shadow-xl rounded-lg overflow-hidden">
-                <EmojiPicker
-                  onEmojiClick={(emojiData) => {
-                    onReact(message.id, emojiData.emoji);
-                    setShowEmojiPicker(false);
-                  }}
-                  lazyLoadEmojis={true}
-                  theme={Theme.DARK}
-                  width={300}
-                  height={400}
-                />
-              </div>
+            <button
+              onClick={() => onPin(message.id, !message.is_pinned)}
+              className={cn(
+                "p-1.5 hover:bg-secondary transition-colors",
+                message.is_pinned
+                  ? "text-accent"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title={message.is_pinned ? "Unpin Message" : "Pin Message"}
+            >
+              <Pin className="w-4 h-4" />
+            </button>
+
+            {isOwnMessage && (
+              <>
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                  title="Edit"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onDelete(message.id)}
+                  className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-destructive transition-colors"
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </>
             )}
           </div>
-
-          <button
-            onClick={() => onReply(message)}
-            className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-            title="Reply"
-          >
-            <Reply className="w-4 h-4" />
-          </button>
-
-          <button
-            onClick={() => onPin(message.id, !message.is_pinned)}
-            className={cn(
-              "p-1.5 hover:bg-secondary transition-colors",
-              message.is_pinned
-                ? "text-accent"
-                : "text-muted-foreground hover:text-foreground"
-            )}
-            title={message.is_pinned ? "Unpin Message" : "Pin Message"}
-          >
-            <Pin className="w-4 h-4" />
-          </button>
-
-          {isOwnMessage && (
-            <>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
-                title="Edit"
-              >
-                <Pencil className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => onDelete(message.id)}
-                className="p-1.5 hover:bg-secondary text-muted-foreground hover:text-destructive transition-colors"
-                title="Delete"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </>
-          )}
-        </div>
+        )}
       </div>
     </motion.div>
   );

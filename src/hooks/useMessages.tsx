@@ -12,8 +12,9 @@ export interface Message {
   reply_to_id: string | null;
   is_pinned: boolean;
   is_edited: boolean;
+  is_deleted?: boolean;
   attachments: unknown[];
-  embeds: unknown[];
+  embeds: any[];
   created_at: string;
   updated_at: string;
   author?: {
@@ -47,7 +48,13 @@ export const useMessages = (channelId: string | null) => {
 
       if (messages.error) throw new Error(messages.error);
 
-      setMessages(messages as Message[]);
+      const formattedMessages = (messages as any[]).map((msg: any) => ({
+        ...msg,
+        is_deleted:
+          Array.isArray(msg.embeds) &&
+          msg.embeds.some((e: any) => e.type === "deleted"),
+      }));
+      setMessages(formattedMessages as Message[]);
     } catch (error) {
       console.error("Error fetching messages:", error);
       toast({
@@ -177,29 +184,129 @@ export const useMessages = (channelId: string | null) => {
 
   useEffect(() => {
     if (!channelId) return;
-
     fetchMessages();
+  }, [channelId, fetchMessages]);
 
-    const channel: RealtimeChannel = supabase
+  useEffect(() => {
+    if (!channelId || !profile) return;
+
+    // Typing indicator channel
+    const typingChannel = supabase.channel(`typing:${channelId}`, {
+      config: {
+        presence: {
+          key: profile.id,
+        },
+      },
+    });
+
+    typingChannel
+      .on("presence", { event: "sync" }, () => {
+        const state = typingChannel.presenceState();
+        const users = Object.values(state)
+          .flat()
+          .map((p: any) => p.username)
+          .filter((u) => u !== (profile.display_name || profile.username));
+        setTypingUsers(users);
+      })
+      .subscribe();
+
+    // Messages channel
+    const messagesChannel: RealtimeChannel = supabase
       .channel(`messages:${channelId}`)
       .on(
         "postgres_changes",
         {
-          event: "*",
+          event: "INSERT",
           schema: "public",
           table: "messages",
           filter: `channel_id=eq.${channelId}`,
         },
-        () => {
-          fetchMessages();
+        async (payload) => {
+          const { data: newMessage, error } = await supabase
+            .from("messages")
+            .select(
+              `
+              *,
+              author:profiles!messages_author_id_fkey(
+                id, username, display_name, avatar_url, status, subscription_tier
+              )
+            `
+            )
+            .eq("id", payload.new.id)
+            .single();
+
+          if (!error && newMessage) {
+            const msgWithDeleted = {
+              ...newMessage,
+              is_deleted:
+                Array.isArray(newMessage.embeds) &&
+                newMessage.embeds.some((e: any) => e.type === "deleted"),
+            };
+            setMessages((prev) => [...prev, msgWithDeleted as Message]);
+          }
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `channel_id=eq.${channelId}`,
+        },
+        async (payload) => {
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === payload.new.id
+                ? {
+                    ...msg,
+                    ...payload.new,
+                    is_deleted:
+                      Array.isArray(payload.new.embeds) &&
+                      payload.new.embeds.some((e: any) => e.type === "deleted"),
+                  }
+                : msg
+            )
+          );
+        }
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "DELETE",
+          schema: "public",
+          table: "messages",
+          filter: `channel_id=eq.${channelId}`,
+        },
+        (payload) => {
+          setMessages((prev) =>
+            prev.filter((msg) => msg.id !== payload.old.id)
+          );
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(typingChannel);
     };
-  }, [channelId, fetchMessages]);
+  }, [channelId, profile]);
+
+  const sendTypingStatus = useCallback(
+    async (isTyping: boolean) => {
+      if (!channelId || !profile) return;
+      const channel = supabase.channel(`typing:${channelId}`);
+      if (isTyping) {
+        await channel.track({
+          username: profile.display_name || profile.username,
+          id: profile.id,
+        });
+      } else {
+        await channel.untrack();
+      }
+    },
+    [channelId, profile]
+  );
 
   return {
     messages,
@@ -212,5 +319,6 @@ export const useMessages = (channelId: string | null) => {
     typingUsers,
     fetchMessages,
     pinMessage,
+    sendTypingStatus,
   };
 };

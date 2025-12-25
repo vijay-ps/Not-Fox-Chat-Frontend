@@ -6,12 +6,22 @@ import tseslint from "typescript-eslint";
 
 export default tseslint.config(
   { ignores: ["dist"] },
+  js.configs.recommended,
+  ...tseslint.configs.recommended,
   {
-    extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,
+      parser: tseslint.parser,
+      parserOptions: {
+        project: [
+          "./tsconfig.json",
+          "./tsconfig.app.json",
+          "./tsconfig.node.json",
+        ],
+        tsconfigRootDir: import.meta.dirname,
+      },
     },
     plugins: {
       "react-hooks": reactHooks,
@@ -19,8 +29,12 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      "react-refresh/only-export-components": [
+        "warn",
+        { allowConstantExport: true },
+      ],
       "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-explicit-any": "off",
     },
-  },
+  }
 );

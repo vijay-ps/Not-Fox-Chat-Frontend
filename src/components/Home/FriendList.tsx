@@ -2,8 +2,13 @@ import { useEffect, useState } from "react";
 import { User, Check, X, MessageSquare, Search, UserPlus } from "lucide-react";
 import { api } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
-const FriendList = () => {
+interface FriendListProps {
+  renderMobileMenu?: React.ReactNode;
+}
+
+const FriendList = ({ renderMobileMenu }: FriendListProps) => {
   const [activeTab, setActiveTab] = useState<
     "online" | "all" | "pending" | "add"
   >("all");
@@ -81,55 +86,60 @@ const FriendList = () => {
   return (
     <div className="flex-1 bg-notfox-light h-full flex flex-col">
       {/* Header */}
-      <div className="h-12 border-b border-border flex items-center px-4 gap-4 bg-notfox-dark">
-        <div className="flex items-center gap-2 text-foreground font-semibold">
-          <User className="w-5 h-5" />
-          Friends
+      <div className="h-10 sm:h-12 border-b border-border flex items-center px-2 sm:px-4 gap-2 sm:gap-4 bg-card/30 backdrop-blur-sm shrink-0">
+        <div className="flex items-center gap-1 sm:gap-2 text-foreground font-semibold shrink-0">
+          {renderMobileMenu}
+          <User className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground mr-1" />
+          <span className="text-sm sm:text-base">Friends</span>
         </div>
-        <div className="h-6 w-px bg-border mx-2" />
-        <div className="flex gap-4 text-sm">
+        <div className="h-4 w-px bg-border mx-1 sm:mx-2" />
+        <div className="flex gap-2 sm:gap-4 text-xs sm:text-sm overflow-x-auto no-scrollbar py-1">
           <button
             onClick={() => setActiveTab("online")}
-            className={`${
+            className={cn(
+              "px-2 py-1 rounded transition-colors whitespace-nowrap",
               activeTab === "online"
-                ? "text-foreground font-medium"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+                ? "text-foreground bg-white/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+            )}
           >
             Online
           </button>
           <button
             onClick={() => setActiveTab("all")}
-            className={`${
+            className={cn(
+              "px-2 py-1 rounded transition-colors whitespace-nowrap",
               activeTab === "all"
-                ? "text-foreground font-medium"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+                ? "text-foreground bg-white/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+            )}
           >
             All
           </button>
           <button
             onClick={() => setActiveTab("pending")}
-            className={`${
+            className={cn(
+              "px-2 py-1 rounded transition-colors whitespace-nowrap flex items-center",
               activeTab === "pending"
-                ? "text-foreground font-medium"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+                ? "text-foreground bg-white/10"
+                : "text-muted-foreground hover:text-foreground hover:bg-white/5"
+            )}
           >
             Pending
             {pending.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 rounded-full bg-destructive text-[10px] text-white">
+              <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-destructive text-[9px] text-white">
                 {pending.length}
               </span>
             )}
           </button>
           <button
             onClick={() => setActiveTab("add")}
-            className={`${
+            className={cn(
+              "px-2 py-1 rounded transition-colors whitespace-nowrap",
               activeTab === "add"
-                ? "text-success font-medium"
-                : "text-success/70 hover:text-success"
-            }`}
+                ? "text-success bg-success/10"
+                : "text-success/70 hover:text-success hover:bg-success/5"
+            )}
           >
             Add Friend
           </button>

@@ -25,9 +25,10 @@ import PinnedMessagesList from "./PinnedMessagesList";
 
 interface ChatAreaRealProps {
   channel: Channel;
+  renderMobileMenu?: React.ReactNode;
 }
 
-const ChatAreaReal = ({ channel }: ChatAreaRealProps) => {
+const ChatAreaReal = ({ channel, renderMobileMenu }: ChatAreaRealProps) => {
   const {
     messages,
     loading,
@@ -36,8 +37,21 @@ const ChatAreaReal = ({ channel }: ChatAreaRealProps) => {
     deleteMessage,
     addReaction,
     pinMessage,
+    typingUsers,
+    sendTypingStatus,
   } = useMessages(channel.id);
   const [inputValue, setInputValue] = useState("");
+
+  useEffect(() => {
+    if (inputValue.trim()) {
+      sendTypingStatus(true);
+      const timeout = setTimeout(() => sendTypingStatus(false), 2000);
+      return () => clearTimeout(timeout);
+    } else {
+      sendTypingStatus(false);
+    }
+  }, [inputValue, sendTypingStatus]);
+
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAIHint, setShowAIHint] = useState(false);
   const [showPinned, setShowPinned] = useState(false);
@@ -160,10 +174,11 @@ const ChatAreaReal = ({ channel }: ChatAreaRealProps) => {
   return (
     <div className="flex-1 flex bg-background overflow-hidden relative">
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="h-12 px-4 flex items-center justify-between border-b border-border bg-card/30 backdrop-blur-sm shrink-0">
-          <div className="flex items-center gap-2">
-            <Hash className="w-5 h-5 text-muted-foreground" />
-            <span className="font-semibold text-foreground">
+        <div className="h-10 sm:h-12 px-2 sm:px-4 flex items-center justify-between border-b border-border bg-card/30 backdrop-blur-sm shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 overflow-hidden">
+            {renderMobileMenu}
+            <Hash className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground flex-shrink-0" />
+            <span className="font-semibold text-foreground text-sm sm:text-base truncate">
               {channel.name}
             </span>
             {channel.topic && (
@@ -175,42 +190,29 @@ const ChatAreaReal = ({ channel }: ChatAreaRealProps) => {
               </>
             )}
           </div>
-
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="text-muted-foreground hover:text-foreground"
-            >
+          <div className="flex items-center gap-2 sm:gap-4 text-muted-foreground shrink-0 pl-2">
+            <button className="hidden sm:block hover:text-foreground transition-colors">
               <Bell className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className={`text-muted-foreground hover:text-foreground ${
-                showPinned ? "bg-secondary text-foreground" : ""
-              }`}
+            </button>
+            <button
               onClick={() => setShowPinned(!showPinned)}
+              className={cn(
+                "hover:text-foreground transition-colors p-1 rounded hover:bg-white/5",
+                showPinned && "text-primary bg-primary/10"
+              )}
             >
-              <Pin className="w-5 h-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="text-muted-foreground hover:text-foreground"
-            >
+              <Pin className="w-4 h-4 sm:w-5 sm:h-5" />
+            </button>
+            <button className="hidden sm:block hover:text-foreground transition-colors">
               <Users className="w-5 h-5" />
-            </Button>
-
-            <div className="relative ml-2">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            </button>
+            <div className="hidden md:flex items-center bg-secondary/50 rounded px-2 py-1">
               <input
                 type="text"
                 placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-36 h-7 pl-8 pr-2 text-sm bg-secondary rounded-md border-none focus:outline-none focus:ring-1 focus:ring-primary placeholder:text-muted-foreground"
+                className="bg-transparent border-none text-xs focus:outline-none w-24"
               />
+              <Search className="w-3 h-3" />
             </div>
           </div>
         </div>
@@ -288,7 +290,7 @@ const ChatAreaReal = ({ channel }: ChatAreaRealProps) => {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="px-4 pb-4">
+        <div className="px-4">
           <AnimatePresence>
             {showAIHint && (
               <motion.div
@@ -311,17 +313,19 @@ const ChatAreaReal = ({ channel }: ChatAreaRealProps) => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
-                className="mb-2 flex items-center justify-between bg-secondary/80 p-2 rounded-t-lg border-l-4 border-primary ml-1"
+                className="mb-2 flex items-center justify-between bg-notfox-input/50 p-2 rounded-t-lg border-l-4 border-primary mx-1"
               >
                 <div className="flex items-center gap-2 text-sm text-foreground">
-                  <span className="text-muted-foreground">Replying to</span>
+                  <span className="text-muted-foreground italic">
+                    Replying to
+                  </span>
                   <span className="font-semibold">
                     {replyTo.author?.display_name || replyTo.author?.username}
                   </span>
                 </div>
                 <button
                   onClick={() => setReplyTo(null)}
-                  className="text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground transition-colors p-1"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -330,11 +334,11 @@ const ChatAreaReal = ({ channel }: ChatAreaRealProps) => {
           </AnimatePresence>
 
           {attachments.length > 0 && (
-            <div className="flex gap-4 p-4 overflow-x-auto bg-secondary/50 rounded-t-lg border-x border-t border-border mx-1 mb-0 custom-scrollbar">
+            <div className="flex gap-4 p-3 overflow-x-auto bg-notfox-input/30 rounded-t-lg border-x border-t border-border/50 mx-1 mb-0 custom-scrollbar">
               {attachments.map((att, i) => (
                 <div
                   key={i}
-                  className="relative group w-48 h-48 flex-shrink-0 bg-background rounded-xl border border-border overflow-hidden flex items-center justify-center p-2 shadow-sm"
+                  className="relative group w-32 h-32 flex-shrink-0 bg-background rounded-lg border border-border/50 overflow-hidden flex items-center justify-center p-2 shadow-sm"
                 >
                   {att.type?.startsWith("image") ? (
                     <img
@@ -345,47 +349,58 @@ const ChatAreaReal = ({ channel }: ChatAreaRealProps) => {
                       }`}
                     />
                   ) : (
-                    <div
-                      className={`flex flex-col items-center p-2 text-center overflow-hidden ${
-                        att.isUploading ? "opacity-50" : ""
-                      }`}
-                    >
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-2">
-                        <span className="text-xs font-bold text-primary">
+                    <div className="flex flex-col items-center p-2 text-center overflow-hidden">
+                      <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mb-1">
+                        <span className="text-[10px] font-bold text-primary">
                           FILE
                         </span>
                       </div>
-                      <span className="text-xs truncate w-full font-medium text-foreground">
+                      <span className="text-[10px] truncate w-full text-foreground">
                         {att.name}
                       </span>
-                      <span className="text-[10px] text-muted-foreground">
-                        {(att.size / 1024).toFixed(1)} KB
-                      </span>
                     </div>
                   )}
-
-                  {att.isUploading && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-
                   {!att.isUploading && (
                     <button
                       onClick={() => removeAttachment(i)}
-                      className="absolute top-2 right-2 bg-destructive/90 hover:bg-destructive text-white p-1.5 rounded-full shadow-lg transition-transform hover:scale-110"
+                      className="absolute top-1 right-1 bg-destructive hover:bg-destructive/80 text-white p-1 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-3 h-3" />
                     </button>
                   )}
                 </div>
               ))}
             </div>
           )}
+        </div>
 
-          <form onSubmit={handleSubmit} className="relative">
+        <div className="px-2 sm:px-4 pb-4 bg-background">
+          <AnimatePresence>
+            {typingUsers.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                className="text-xs text-muted-foreground mb-1 ml-2 flex items-center gap-2"
+              >
+                <div className="flex gap-0.5">
+                  <span className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" />
+                </div>
+                <span>
+                  {typingUsers.length === 1
+                    ? `${typingUsers[0]} is typing...`
+                    : typingUsers.length === 2
+                    ? `${typingUsers[0]} and ${typingUsers[1]} are typing...`
+                    : "Several people are typing..."}
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <form onSubmit={handleSubmit}>
             <div
-              className={`flex items-center gap-2 bg-secondary/80 px-4 py-2 border border-border focus-within:border-primary/50 transition-colors ${
+              className={`bg-notfox-input flex items-center p-1.5 sm:p-2 gap-2 border border-transparent focus-within:border-primary/50 transition-all ${
                 replyTo || attachments.length > 0
                   ? "rounded-b-lg border-t-0"
                   : "rounded-lg"
@@ -394,7 +409,7 @@ const ChatAreaReal = ({ channel }: ChatAreaRealProps) => {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="p-1.5 sm:p-2 text-muted-foreground hover:text-foreground transition-colors rounded-full hover:bg-white/5 active:scale-90"
                 disabled={isUploading}
               >
                 <PlusCircle className="w-5 h-5" />
@@ -411,20 +426,24 @@ const ChatAreaReal = ({ channel }: ChatAreaRealProps) => {
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder={`Message #${channel.name} • Type @AI for AI help`}
-                className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none"
+                placeholder={
+                  window.innerWidth < 640
+                    ? "Message"
+                    : `Message #${channel.name} • Type @AI for help`
+                }
+                className="flex-1 bg-transparent text-foreground placeholder:text-muted-foreground/60 focus:outline-none text-sm sm:text-[15px] py-1"
               />
 
-              <div className="flex items-center gap-1 relative">
+              <div className="flex items-center gap-1 sm:gap-2 pr-1 relative">
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="text-muted-foreground hover:text-foreground transition-colors p-1"
+                  className="hidden sm:flex text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-full hover:bg-white/5"
                 >
                   <Smile className="w-5 h-5" />
                 </button>
                 {showEmojiPicker && (
-                  <div className="absolute bottom-full right-0 mb-2 z-50 shadow-xl rounded-lg overflow-hidden">
+                  <div className="absolute bottom-full right-0 mb-3 z-50 shadow-2xl rounded-xl overflow-hidden">
                     <EmojiPicker
                       onEmojiClick={(emojiData) => {
                         setInputValue((prev) => prev + emojiData.emoji);
@@ -432,7 +451,7 @@ const ChatAreaReal = ({ channel }: ChatAreaRealProps) => {
                       }}
                       lazyLoadEmojis={true}
                       theme={Theme.DARK}
-                      width={300}
+                      width={window.innerWidth < 400 ? 280 : 320}
                       height={400}
                     />
                   </div>
@@ -441,10 +460,10 @@ const ChatAreaReal = ({ channel }: ChatAreaRealProps) => {
                   type="submit"
                   disabled={isSendDisabled}
                   className={cn(
-                    "p-1 transition-all",
+                    "p-1.5 sm:p-2 transition-all rounded-full active:scale-95",
                     !isSendDisabled
-                      ? "text-primary hover:text-primary/80"
-                      : "text-muted-foreground cursor-not-allowed"
+                      ? "text-primary hover:text-primary/80 hover:bg-primary/10"
+                      : "text-muted-foreground/40 cursor-not-allowed"
                   )}
                 >
                   <Send className="w-5 h-5" />

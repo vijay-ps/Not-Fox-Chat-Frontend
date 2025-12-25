@@ -19,6 +19,7 @@ import DMList from "@/components/layout/DMList";
 import DMArea from "@/components/chat/DMArea";
 import FriendList from "@/components/Home/FriendList";
 import { CallModal } from "@/components/modals/CallModal";
+import MobileSidebar from "@/components/layout/MobileSidebar";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -203,114 +204,165 @@ const Index = () => {
         animate={{ opacity: 1 }}
         className="flex h-screen bg-background overflow-hidden"
       >
-        {/* Server Sidebar */}
-        <ServerSidebar
-          servers={servers}
-          activeServerId={activeServerId || ""}
-          onServerSelect={handleServerSelect}
-          onAddServer={() => setShowCreateServer(true)}
-          onJoinServer={() => setShowJoinServer(true)}
-        />
-
-        {/* Channel Sidebar */}
-        {viewMode === "server" && activeServer && (
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeServerId}
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.2 }}
-              className="flex-shrink-0 z-10" // Ensure it doesn't shrink and stays on top if needed
-            >
-              <ChannelSidebarReal
-                server={activeServer}
-                channels={channels}
-                activeChannelId={activeChannelId || ""}
-                onChannelSelect={setActiveChannelId}
-                onCreateChannel={(name, type) =>
-                  createChannel(activeServerId!, name, type)
-                }
-                onOpenSettings={() => setShowSettings(true)}
-                profile={profile!}
-                onJoinVoice={setActiveVoiceChannel}
-              />
-            </motion.div>
-          </AnimatePresence>
-        )}
-
-        {/* DM List Sidebar */}
-        {viewMode === "dm" && (
-          <DMList
-            activeConversationId={activeConversationId}
-            onSelectConversation={setActiveConversationId}
+        {/* Server Sidebar - Hidden on mobile, shown on lg+ screens */}
+        <div className="hidden lg:flex flex-shrink-0">
+          <ServerSidebar
+            servers={servers}
+            activeServerId={activeServerId || ""}
+            onServerSelect={handleServerSelect}
+            onAddServer={() => setShowCreateServer(true)}
+            onJoinServer={() => setShowJoinServer(true)}
           />
-        )}
+        </div>
 
-        {/* Chat Area */}
-        {viewMode === "server" ? (
-          activeChannel ? (
-            <ChatAreaReal channel={activeChannel} />
-          ) : activeServer ? (
-            <div className="flex-1 flex items-center justify-center bg-background">
-              <div className="text-center">
-                <div className="text-6xl mb-4">🦊</div>
-                <h2 className="text-2xl font-display text-foreground mb-2">
-                  Select a Channel
-                </h2>
-                <p className="text-muted-foreground max-w-md">
-                  Choose a channel from the sidebar to start chatting.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 flex items-center justify-center bg-background">
-              <div className="text-center">
-                <div className="text-6xl mb-4">🦊</div>
-                <h2 className="text-2xl font-display text-foreground mb-2">
-                  Create Your First Server
-                </h2>
-                <p className="text-muted-foreground max-w-md">
-                  Start by creating a server or joining one.
-                </p>
-                <div className="flex gap-3 justify-center mt-6">
-                  <button
-                    onClick={() => setShowCreateServer(true)}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                  >
-                    Create Server
-                  </button>
-                  <button
-                    onClick={() => setShowJoinServer(true)}
-                    className="px-4 py-2 bg-secondary text-foreground rounded-lg hover:bg-secondary/80 transition-colors"
-                  >
-                    Join Server
-                  </button>
+        {/* Define the mobile menu renderer */}
+        {(() => {
+          const mobileMenu = (
+            <MobileSidebar
+              servers={servers}
+              activeServerId={activeServerId}
+              onServerSelect={handleServerSelect}
+              onAddServer={() => setShowCreateServer(true)}
+              onJoinServer={() => setShowJoinServer(true)}
+              viewMode={viewMode}
+              activeServer={activeServer}
+              channels={channels}
+              activeChannelId={activeChannelId}
+              onChannelSelect={setActiveChannelId}
+              createChannel={createChannel}
+              setShowSettings={setShowSettings}
+              profile={profile}
+              setActiveVoiceChannel={setActiveVoiceChannel}
+              activeConversationId={activeConversationId}
+              setActiveConversationId={setActiveConversationId}
+            />
+          );
+
+          return (
+            <>
+              {/* Channel Sidebar - Hidden on mobile, shown on lg+ screens */}
+              {viewMode === "server" && activeServer && (
+                <div className="hidden lg:block h-full">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeServerId}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -20 }}
+                      transition={{ duration: 0.2 }}
+                      className="h-full"
+                    >
+                      <ChannelSidebarReal
+                        server={activeServer}
+                        channels={channels}
+                        activeChannelId={activeChannelId || ""}
+                        onChannelSelect={setActiveChannelId}
+                        onCreateChannel={(name, type) =>
+                          createChannel(activeServerId!, name, type)
+                        }
+                        onOpenSettings={() => setShowSettings(true)}
+                        profile={profile!}
+                        onJoinVoice={setActiveVoiceChannel}
+                      />
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
-              </div>
-            </div>
-          )
-        ) : activeConversationId === "friends" ? (
-          <FriendList />
-        ) : activeConversationId ? (
-          <DMArea conversationId={activeConversationId} />
-        ) : (
-          <div className="flex-1 flex items-center justify-center bg-background">
-            <div className="text-center">
-              <div className="text-6xl mb-4">💬</div>
-              <h2 className="text-2xl font-display text-foreground mb-2">
-                Your Messages
-              </h2>
-              <p className="text-muted-foreground max-w-md">
-                Select a conversation or start a new one.
-              </p>
-            </div>
-          </div>
-        )}
+              )}
 
-        {viewMode === "server" && activeChannel && members.length > 0 && (
-          <MemberSidebarReal members={members} serverId={activeServerId!} />
-        )}
+              {/* DM List Sidebar - Hidden on mobile, shown on lg+ screens */}
+              {viewMode === "dm" && (
+                <div className="hidden lg:block h-full">
+                  <DMList
+                    activeConversationId={activeConversationId}
+                    onSelectConversation={setActiveConversationId}
+                  />
+                </div>
+              )}
+
+              {/* Chat Area - Responsive */}
+              <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
+                {viewMode === "server" ? (
+                  activeChannel ? (
+                    <ChatAreaReal
+                      channel={activeChannel}
+                      renderMobileMenu={mobileMenu}
+                    />
+                  ) : activeServer ? (
+                    <div className="flex-1 flex items-center justify-center bg-background">
+                      <div className="text-center p-4">
+                        {mobileMenu}
+                        <div className="text-6xl mb-4">🦊</div>
+                        <h2 className="text-2xl font-display text-foreground mb-2">
+                          Select a Channel
+                        </h2>
+                        <p className="text-muted-foreground max-w-md mx-auto">
+                          Choose a channel from the sidebar to start chatting.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex-1 flex items-center justify-center bg-background">
+                      <div className="text-center p-4">
+                        {mobileMenu}
+                        <div className="text-6xl mb-4">🦊</div>
+                        <h2 className="text-2xl font-display text-foreground mb-2">
+                          Create Your First Server
+                        </h2>
+                        <p className="text-muted-foreground max-w-md mx-auto">
+                          Start by creating a server or joining one.
+                        </p>
+                        <div className="flex flex-wrap gap-3 justify-center mt-6">
+                          <button
+                            onClick={() => setShowCreateServer(true)}
+                            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                          >
+                            Create Server
+                          </button>
+                          <button
+                            onClick={() => setShowJoinServer(true)}
+                            className="px-4 py-2 bg-secondary text-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+                          >
+                            Join Server
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ) : activeConversationId === "friends" ? (
+                  <FriendList renderMobileMenu={mobileMenu} />
+                ) : activeConversationId ? (
+                  <DMArea
+                    conversationId={activeConversationId}
+                    renderMobileMenu={mobileMenu}
+                  />
+                ) : (
+                  <div className="flex-1 flex items-center justify-center bg-background">
+                    <div className="text-center p-4">
+                      {mobileMenu}
+                      <div className="text-6xl mb-4">💬</div>
+                      <h2 className="text-2xl font-display text-foreground mb-2">
+                        Your Messages
+                      </h2>
+                      <p className="text-muted-foreground max-w-md mx-auto">
+                        Select a conversation or start a new one.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Member Sidebar - Hidden on mobile/tablets, shown on xl+ screens */}
+              {viewMode === "server" && activeChannel && members.length > 0 && (
+                <div className="hidden xl:block h-full">
+                  <MemberSidebarReal
+                    members={members}
+                    serverId={activeServerId!}
+                  />
+                </div>
+              )}
+            </>
+          );
+        })()}
       </motion.div>
 
       <CreateServerModal

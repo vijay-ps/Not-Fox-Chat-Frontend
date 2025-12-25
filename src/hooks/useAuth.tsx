@@ -153,7 +153,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const updateStatus = async (status: Profile["status"]) => {
-    if (!profile) return;
+    if (!profile || profile.status === status) return;
 
     await supabase.from("profiles").update({ status }).eq("id", profile.id);
 
